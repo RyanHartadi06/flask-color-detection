@@ -1,0 +1,173 @@
+<html>
+  <head>
+    <link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="" />
+    <link
+      rel="stylesheet"
+      as="style"
+      onload="this.rel='stylesheet'"
+      href="https://fonts.googleapis.com/css2?display=swap&amp;family=Manrope%3Awght%40400%3B500%3B700%3B800&amp;family=Noto+Sans%3Awght%40400%3B500%3B700%3B900"
+    />
+
+    <title>Stitch Design</title>
+    <link rel="icon" type="image/x-icon" href="data:image/x-icon;base64," />
+
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  </head>
+  <body>
+    <div
+      class="relative flex size-full min-h-screen flex-col bg-white group/design-root overflow-x-hidden"
+      style="font-family: Manrope, 'Noto Sans', sans-serif"
+    >
+      <div class="layout-container flex h-full grow flex-col">
+        <header
+          class="flex items-center justify-between whitespace-nowrap border-b border-solid border-b-[#f4f0f0] px-10 py-3"
+        >
+          <div class="flex items-center gap-4 text-[#181111]">
+            <div class="size-4">
+              <svg
+                viewBox="0 0 48 48"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M42.4379 44C42.4379 44 36.0744 33.9038 41.1692 24C46.8624 12.9336 42.2078 4 42.2078 4L7.01134 4C7.01134 4 11.6577 12.932 5.96912 23.9969C0.876273 33.9029 7.27094 44 7.27094 44L42.4379 44Z"
+                  fill="currentColor"
+                ></path>
+              </svg>
+            </div>
+            <h2
+              class="text-[#181111] text-lg font-bold leading-tight tracking-[-0.015em]"
+            >
+              Color Detector
+            </h2>
+          </div>
+          <div class="flex flex-1 justify-end gap-8">
+            <div class="flex items-center gap-9">
+              <a
+                class="text-[#181111] text-sm font-medium leading-normal"
+                href="#"
+                >Home</a
+              >
+              <a
+                class="text-[#181111] text-sm font-medium leading-normal"
+                href="#"
+                >About</a
+              >
+              <a
+                class="text-[#181111] text-sm font-medium leading-normal"
+                href="#"
+                >Contact</a
+              >
+            </div>
+            <button
+              class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-[#f4f0f0] text-[#181111] text-sm font-bold leading-normal tracking-[0.015em]"
+            >
+              <span class="truncate">Login</span>
+            </button>
+          </div>
+        </header>
+        <div class="px-40 flex flex-1 justify-center py-5">
+          <div
+            class="layout-content-container flex flex-col max-w-[960px] flex-1"
+          >
+            <h2
+              class="text-[#181111] tracking-light text-[28px] font-bold leading-tight px-4 text-center pb-3 pt-5"
+            >
+              Real-Time Color Detection
+            </h2>
+            <p
+              class="text-[#181111] text-base font-normal leading-normal pb-3 pt-1 px-4 text-center"
+            >
+              Analyze colors in real-time using your camera feed. See the
+              percentage of pink and white colors detected.
+            </p>
+            <div class="p-4">
+              <div class="p-4">
+                <h2 class="text-lg font-bold">Live Camera Feed</h2>
+                <img
+                  src="{{ url_for('main.video_feed') }}"
+                  width="1000"
+                  height="750"
+                  class="rounded-lg border"
+                />
+              </div>
+            </div>
+            <h2
+              class="text-[#181111] text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5"
+            >
+              Color Detection Results
+            </h2>
+            <div class="flex flex-wrap gap-4 p-4">
+              <div
+                class="flex min-w-[158px] flex-1 flex-col gap-2 rounded-lg p-6 bg-[#f4f0f0]"
+              >
+                <p class="text-[#181111] text-base font-medium leading-normal">
+                  Pink
+                </p>
+                <p
+                  id="pinkPercent"
+                  class="text-[#181111] tracking-light text-2xl font-bold leading-tight"
+                >
+                  0%
+                </p>
+              </div>
+              <div
+                class="flex min-w-[158px] flex-1 flex-col gap-2 rounded-lg p-6 bg-[#f4f0f0]"
+              >
+                <p class="text-[#181111] text-base font-medium leading-normal">
+                  White
+                </p>
+                <p
+                  id="whitePercent"
+                  class="text-[#181111] tracking-light text-2xl font-bold leading-tight"
+                >
+                  0%
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <footer class="flex justify-center">
+          <div class="flex max-w-[960px] flex-1 flex-col">
+            <footer
+              class="flex flex-col gap-6 px-5 py-10 text-center @container"
+            >
+              <div
+                class="flex flex-wrap items-center justify-center gap-6 @[480px]:flex-row @[480px]:justify-around"
+              >
+                <a
+                  class="text-[#886364] text-base font-normal leading-normal min-w-40"
+                  href="#"
+                  >Privacy Policy</a
+                >
+                <a
+                  class="text-[#886364] text-base font-normal leading-normal min-w-40"
+                  href="#"
+                  >Terms of Service</a
+                >
+              </div>
+              <p class="text-[#886364] text-base font-normal leading-normal">
+                @2024 Color Detector. All rights reserved.
+              </p>
+            </footer>
+          </div>
+        </footer>
+      </div>
+    </div>
+  </body>
+  <script>
+    function updateColorResults() {
+      fetch("/detect-color")
+        .then((response) => response.json())
+        .then((data) => {
+          document.getElementById("pinkPercent").textContent = data.pink + "%";
+          document.getElementById("whitePercent").textContent =
+            data.white + "%";
+        })
+        .catch((error) => console.error("Error:", error));
+    }
+
+    // Update tiap 3 detik
+    setInterval(updateColorResults, 3000);
+  </script>
+</html>
