@@ -83,12 +83,21 @@
             </p>
             <div class="p-4">
               <div class="p-4">
-                <h2 class="text-lg font-bold">Live Camera Feed</h2>
+                <div class="flex justify-between items-center mb-2">
+                  <h2 class="text-lg font-bold">Live Camera Feed</h2>
+                  <p
+                    id="connectionStatus"
+                    class="text-gray-600 text-sm font-medium"
+                  >
+                    Checking...
+                  </p>
+                </div>
                 <img
                   src="{{ url_for('main.video_feed') }}"
                   width="1000"
                   height="750"
                   class="rounded-lg border"
+                  onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwMCIgaGVpZ2h0PSI3NTAiIHZpZXdCb3g9IjAgMCAxMDAwIDc1MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjEwMDAiIGhlaWdodD0iNzUwIiBmaWxsPSIjRjNGNEY2Ii8+Cjx0ZXh0IHg9IjUwMCIgeT0iMzc1IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMjAiIGZpbGw9IiM2QjczODAiPkNhbWVyYSBOb3QgQXZhaWxhYmxlPC90ZXh0Pgo8L3N2Zz4K'"
                 />
               </div>
             </div>
@@ -160,14 +169,71 @@
       fetch("/detect-color")
         .then((response) => response.json())
         .then((data) => {
-          document.getElementById("pinkPercent").textContent = data.pink + "%";
-          document.getElementById("whitePercent").textContent =
-            data.white + "%";
+          if (data.status === "success") {
+            document.getElementById("pinkPercent").textContent =
+              data.pink + "%";
+            document.getElementById("whitePercent").textContent =
+              data.white + "%";
+            // Remove any error indicators
+            document.getElementById("connectionStatus").textContent =
+              "Connected";
+            document.getElementById("connectionStatus").className =
+              "text-green-600 text-sm font-medium";
+          } else {
+            // Handle error cases
+            document.getElementById("pinkPercent").textContent = "Error";
+            document.getElementById("whitePercent").textContent = "Error";
+            document.getElementById("connectionStatus").textContent =
+              data.status || "Error";
+            document.getElementById("connectionStatus").className =
+              "text-red-600 text-sm font-medium";
+            console.warn(
+              "Color detection error:",
+              data.error || "Unknown error"
+            );
+          }
         })
-        .catch((error) => console.error("Error:", error));
+        .catch((error) => {
+          console.error("Network error:", error);
+          document.getElementById("pinkPercent").textContent = "Network Error";
+          document.getElementById("whitePercent").textContent = "Network Error";
+          document.getElementById("connectionStatus").textContent =
+            "Disconnected";
+          document.getElementById("connectionStatus").className =
+            "text-red-600 text-sm font-medium";
+        });
     }
 
-    // Update tiap 3 detik
+    function checkCameraStatus() {
+      fetch("/camera-status")
+        .then((response) => response.json())
+        .then((data) => {
+          const statusElement = document.getElementById("connectionStatus");
+          if (data.status === "connected") {
+            statusElement.textContent = "Camera Connected";
+            statusElement.className = "text-green-600 text-sm font-medium";
+          } else {
+            statusElement.textContent = data.message || "Camera Disconnected";
+            statusElement.className = "text-red-600 text-sm font-medium";
+          }
+        })
+        .catch((error) => {
+          console.error("Camera status check error:", error);
+          document.getElementById("connectionStatus").textContent =
+            "Status Unknown";
+          document.getElementById("connectionStatus").className =
+            "text-gray-600 text-sm font-medium";
+        });
+    }
+
+    // Update color results every 3 seconds
     setInterval(updateColorResults, 3000);
+
+    // Check camera status every 10 seconds
+    setInterval(checkCameraStatus, 10000);
+
+    // Initial checks
+    updateColorResults();
+    checkCameraStatus();
   </script>
 </html>
