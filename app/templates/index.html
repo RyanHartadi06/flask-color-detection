@@ -183,8 +183,10 @@
             // Handle frame reading issues without showing full error
             document.getElementById("pinkPercent").textContent = "Reading...";
             document.getElementById("whitePercent").textContent = "Reading...";
-            document.getElementById("connectionStatus").textContent = "Reconnecting";
-            document.getElementById("connectionStatus").className = "text-yellow-600 text-sm font-medium";
+            document.getElementById("connectionStatus").textContent =
+              "Reconnecting";
+            document.getElementById("connectionStatus").className =
+              "text-yellow-600 text-sm font-medium";
           } else {
             // Handle other error cases
             document.getElementById("pinkPercent").textContent = "Error";
