@@ -179,8 +179,14 @@
               "Connected";
             document.getElementById("connectionStatus").className =
               "text-green-600 text-sm font-medium";
+          } else if (data.status === "no_frame") {
+            // Handle frame reading issues without showing full error
+            document.getElementById("pinkPercent").textContent = "Reading...";
+            document.getElementById("whitePercent").textContent = "Reading...";
+            document.getElementById("connectionStatus").textContent = "Reconnecting";
+            document.getElementById("connectionStatus").className = "text-yellow-600 text-sm font-medium";
           } else {
-            // Handle error cases
+            // Handle other error cases
             document.getElementById("pinkPercent").textContent = "Error";
             document.getElementById("whitePercent").textContent = "Error";
             document.getElementById("connectionStatus").textContent =

@@ -77,13 +77,13 @@ class ColorController:
                 success, frame = camera.read()
                 
             if not success or frame is None:
-                print("⚠️ Gagal membaca frame di detect_color(), mencoba reconnect...")
-                reconnect_camera()
+                print("⚠️ Gagal membaca frame di detect_color()")
+                # Don't immediately reconnect, let the video stream handle it
                 return jsonify({
                     'error': 'Failed to read frame',
                     'pink': 0, 
                     'white': 0,
-                    'status': 'error'
+                    'status': 'no_frame'
                 })
 
             pink_percent, white_percent = ColorController.calculate_color_percentage(frame)
@@ -95,7 +95,6 @@ class ColorController:
             
         except cv2.error as e:
             print(f"❌ OpenCV Error in detect_color(): {e}")
-            reconnect_camera()
             return jsonify({
                 'error': f'OpenCV Error: {str(e)}',
                 'pink': 0, 

@@ -62,6 +62,7 @@ def reconnect_camera():
             if camera:
                 camera.release()
                 camera = None
+                time.sleep(0.5)  # Give camera time to fully release
             
             return init_camera()
             
