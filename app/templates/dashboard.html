@@ -1,0 +1,1287 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="{{ url_for('static', filename='css/main.css') }}"
+      rel="stylesheet"
+    />
+
+    <title>Analytics Dashboard - AI Color Detection</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <style>
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transition: transform 0.2s ease;
+        }
+        .metric-card:hover {
+            transform: translateY(-2px);
+        }
+        .metric-card-pink {
+            background: linear-gradient(135deg, #ff69b4 0%, #ff1493 50%, #dc143c 100%);
+            box-shadow: 0 10px 25px rgba(255, 20, 147, 0.3);
+        }
+        .metric-card-white {
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 50%, #e9ecef 100%);
+            color: #333;
+            border: 2px solid #dee2e6;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+        .metric-card-accuracy {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        .live-indicator {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+  </head>
+  <body
+    class="bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 min-h-screen font-inter"
+  >
+    <!-- Navigation -->
+    <nav
+      class="bg-white/80 backdrop-blur-md border-b border-gray-200/50 sticky top-0 z-50"
+    >
+      <div class="container mx-auto px-6 py-4">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-6">
+            <a href="/" class="flex items-center space-x-3 group">
+              <div
+                class="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center"
+              >
+                <i class="fas fa-chart-line text-white"></i>
+              </div>
+              <span class="text-xl font-bold text-gray-800 font-space"
+                >Analytics Dashboard</span
+              >
+            </a>
+
+            <div class="hidden md:flex space-x-6">
+              <a
+                href="/"
+                class="text-gray-600 hover:text-blue-600 transition-colors"
+                >Live Feed</a
+              >
+              <a href="/dashboard" class="text-blue-600 font-semibold"
+                >Dashboard</a
+              >
+            </div>
+          </div>
+
+          <div class="flex items-center space-x-3">
+            <div class="flex items-center space-x-2 text-sm">
+              <div class="w-2 h-2 bg-green-500 rounded-full live-indicator"></div>
+              <span class="text-gray-600">Live</span>
+            </div>
+            <button id="exportBtn"
+              class="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-2 rounded-lg hover:shadow-lg transition-all"
+            >
+              <i class="fas fa-download mr-2"></i>Export Data
+            </button>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container mx-auto px-6 py-8">
+        
+        <!-- Live Status Banner -->
+        <div class="bg-white rounded-xl shadow-lg p-4 mb-8 border-l-4 border-green-500">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-video text-green-500 text-lg"></i>
+                    <div>
+                        <h3 class="font-semibold text-gray-800">Real-time Color Detection Active</h3>
+                        <p class="text-gray-600 text-sm">Enhanced color detection with 4 HSV ranges</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="text-center">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-4 h-4 rounded-full" id="pinkColorIndicator" style="background: linear-gradient(45deg, #ff69b4, #ff1493); border: 2px solid white; box-shadow: 0 0 10px rgba(255, 20, 147, 0.5);"></div>
+                            <span class="text-sm font-medium text-gray-700">Pink Active</span>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-4 h-4 rounded-full" id="whiteColorIndicator" style="background: white; border: 2px solid #dee2e6; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);"></div>
+                            <span class="text-sm font-medium text-gray-700">White Active</span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm text-gray-500">Last Update</div>
+                        <div class="font-semibold text-gray-800" id="lastUpdateTime">--</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Metrics Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <!-- Pink Detection Card -->
+            <div class="metric-card metric-card-pink rounded-xl p-6 shadow-lg">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-white/80 text-sm font-medium">Pink Detection</p>
+                        <p class="text-3xl font-bold text-white" id="currentPink">--</p>
+                        <p class="text-white/70 text-xs mt-1">Current percentage</p>
+                    </div>
+                    <div class="bg-white/20 rounded-full p-3">
+                        <i class="fas fa-heart text-2xl text-white"></i>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <div class="flex items-center text-white/80 text-sm">
+                        <i class="fas fa-arrow-up mr-1" id="pinkTrend"></i>
+                        <span id="pinkChange">+0.0%</span>
+                        <span class="ml-2">vs last reading</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- White Detection Card -->
+            <div class="metric-card metric-card-white rounded-xl p-6 shadow-lg">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm font-medium">White Detection</p>
+                        <p class="text-3xl font-bold text-gray-800" id="currentWhite">--</p>
+                        <p class="text-gray-500 text-xs mt-1">Current percentage</p>
+                    </div>
+                    <div class="bg-gray-200 rounded-full p-3">
+                        <i class="fas fa-circle text-2xl text-gray-600"></i>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <div class="flex items-center text-gray-600 text-sm">
+                        <i class="fas fa-arrow-up mr-1" id="whiteTrend"></i>
+                        <span id="whiteChange">+0.0%</span>
+                        <span class="ml-2">vs last reading</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Accuracy Card -->
+            <div class="metric-card metric-card-accuracy rounded-xl p-6 shadow-lg">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-white/80 text-sm font-medium">Detection Accuracy</p>
+                        <p class="text-3xl font-bold text-white" id="currentAccuracy">87.5%</p>
+                        <p class="text-white/70 text-xs mt-1">Enhanced algorithm</p>
+                    </div>
+                    <div class="bg-white/20 rounded-full p-3">
+                        <i class="fas fa-bullseye text-2xl text-white"></i>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <div class="flex items-center text-white/80 text-sm">
+                        <i class="fas fa-check-circle mr-1"></i>
+                        <span id="activeRangesText">4 HSV ranges active</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- System Status Card -->
+            <div class="metric-card rounded-xl p-6 shadow-lg">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-white/80 text-sm font-medium">System Status</p>
+                        <p class="text-3xl font-bold text-white" id="systemStatus">Online</p>
+                        <p class="text-white/70 text-xs mt-1" id="systemUptime">--</p>
+                    </div>
+                    <div class="bg-white/20 rounded-full p-3">
+                        <i class="fas fa-server text-2xl text-white"></i>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <div class="flex items-center text-white/80 text-sm">
+                        <i class="fas fa-signal mr-1"></i>
+                        <span id="connectionStatus">Connected</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row 1 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+            
+            <!-- Real-time Detection Chart -->
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800">Real-time Detection Trends</h3>
+                    <div class="flex space-x-2">
+                        <button id="pauseChart" class="text-gray-500 hover:text-gray-700 p-2 rounded-lg hover:bg-gray-100">
+                            <i class="fas fa-pause"></i>
+                        </button>
+                        <button id="resetChart" class="text-gray-500 hover:text-gray-700 p-2 rounded-lg hover:bg-gray-100">
+                            <i class="fas fa-redo"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="realtimeChart"></canvas>
+                </div>
+                <div class="mt-4 grid grid-cols-2 gap-4 text-sm">
+                    <div class="text-center">
+                        <div class="text-pink-500 font-semibold" id="pinkAvgDisplay">--</div>
+                        <div class="text-gray-500">Pink Average</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-gray-600 font-semibold" id="whiteAvgDisplay">--</div>
+                        <div class="text-gray-500">White Average</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detection Distribution -->
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800">Current Detection Distribution</h3>
+                    <span class="text-sm text-gray-500" id="distributionTime">Real-time</span>
+                </div>
+                <div class="chart-container">
+                    <canvas id="distributionChart"></canvas>
+                </div>
+                <div class="mt-4">
+                    <div class="text-center text-sm text-gray-600">
+                        <span class="font-semibold" id="totalDetectionPercent">--</span> total detection coverage
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row 2 -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+            
+            <!-- Detection History -->
+            <div class="lg:col-span-2 bg-white rounded-xl shadow-lg p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-800">Detection History (Last Hour)</h3>
+                    <select id="historyPeriod" class="text-sm border rounded-lg px-3 py-1 bg-white">
+                        <option value="1h">Last Hour</option>
+                        <option value="6h">Last 6 Hours</option>
+                        <option value="24h">Last 24 Hours</option>
+                    </select>
+                </div>
+                <div class="chart-container">
+                    <canvas id="historyChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Statistics Panel -->
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Statistics</h3>
+                
+                <div class="space-y-4">
+                    <div class="border-b pb-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600 text-sm">Pink Average</span>
+                            <span class="font-semibold" id="pinkAvg">--</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2 mt-1">
+                            <div class="bg-pink-500 h-2 rounded-full transition-all duration-500" id="pinkAvgBar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="border-b pb-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600 text-sm">White Average</span>
+                            <span class="font-semibold" id="whiteAvg">--</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2 mt-1">
+                            <div class="bg-gray-400 h-2 rounded-full transition-all duration-500" id="whiteAvgBar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="border-b pb-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600 text-sm">Peak Pink</span>
+                            <span class="font-semibold text-pink-600" id="pinkPeak">--</span>
+                        </div>
+                    </div>
+                    
+                    <div class="border-b pb-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600 text-sm">Peak White</span>
+                            <span class="font-semibold text-gray-700" id="whitePeak">--</span>
+                        </div>
+                    </div>
+                    
+                    <div class="border-b pb-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600 text-sm">Total Frames</span>
+                            <span class="font-semibold text-blue-600" id="totalFrames">--</span>
+                        </div>
+                    </div>
+                    
+                    <div class="pt-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600 text-sm">Uptime</span>
+                            <span class="font-semibold text-green-600" id="uptime">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Information -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+            <h3 class="text-lg font-semibold text-gray-800 mb-6">System Information</h3>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div class="text-center">
+                    <div class="text-3xl font-bold text-blue-600" id="detectionMethod">Enhanced</div>
+                    <div class="text-gray-500 text-sm mt-1">Detection Algorithm</div>
+                    <div class="text-xs text-gray-400 mt-1">Multi-range HSV</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-3xl font-bold text-green-600" id="activeRanges">4</div>
+                    <div class="text-gray-500 text-sm mt-1">Active HSV Ranges</div>
+                    <div class="text-xs text-gray-400 mt-1">Adaptive detection</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-3xl font-bold text-purple-600" id="frameRate">15</div>
+                    <div class="text-gray-500 text-sm mt-1">Frame Rate (FPS)</div>
+                    <div class="text-xs text-gray-400 mt-1">RTSP stream</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-3xl font-bold text-orange-600" id="resolution">640x360</div>
+                    <div class="text-gray-500 text-sm mt-1">Resolution</div>
+                    <div class="text-xs text-gray-400 mt-1">Auto-scaled</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Debug Information -->
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Debug Information</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h4 class="font-medium text-gray-700 mb-3">Preprocessing Status</h4>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex items-center space-x-2">
+                            <i class="fas fa-check-circle text-green-500" id="gammaStatus"></i>
+                            <span>Gamma Correction</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <i class="fas fa-check-circle text-green-500" id="histogramStatus"></i>
+                            <span>Histogram Equalization</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <i class="fas fa-check-circle text-green-500" id="saturationStatus"></i>
+                            <span>Saturation Boost</span>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="font-medium text-gray-700 mb-3">Detection Parameters</h4>
+                    <div class="space-y-2 text-sm">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Dominant Hue:</span>
+                            <span class="font-medium" id="dominantHue">--</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Avg Saturation:</span>
+                            <span class="font-medium" id="avgSaturation">--</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Avg Value:</span>
+                            <span class="font-medium" id="avgValue">--</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+            </button>
+            <button
+              class="w-10 h-10 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center transition-colors"
+            >
+              <i class="fas fa-user text-gray-600"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container mx-auto px-6 py-8">
+      <!-- Dashboard Header -->
+      <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-2 font-space">
+          Analytics Dashboard
+        </h1>
+        <p class="text-gray-600">
+          Real-time color detection analytics and system performance metrics
+        </p>
+      </div>
+
+      <!-- Key Metrics Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div
+          class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-gray-200/50 shadow-lg"
+        >
+          <div class="flex items-center justify-between mb-4">
+            <div
+              class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center"
+            >
+              <i class="fas fa-chart-line text-green-600 text-xl"></i>
+            </div>
+            <span
+              class="text-xs bg-green-100 text-green-600 px-2 py-1 rounded-full"
+              >+5.2%</span
+            >
+          </div>
+          <h3 class="text-2xl font-bold text-gray-900 mb-1">87.5%</h3>
+          <p class="text-gray-600 text-sm">Average Accuracy</p>
+        </div>
+
+        <div
+          class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-gray-200/50 shadow-lg"
+        >
+          <div class="flex items-center justify-between mb-4">
+            <div
+              class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center"
+            >
+              <i class="fas fa-tachometer-alt text-blue-600 text-xl"></i>
+            </div>
+            <span
+              class="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full"
+              >Real-time</span
+            >
+          </div>
+          <h3 class="text-2xl font-bold text-gray-900 mb-1">8,448</h3>
+          <p class="text-gray-600 text-sm">Max FPS</p>
+        </div>
+
+        <div
+          class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-gray-200/50 shadow-lg"
+        >
+          <div class="flex items-center justify-between mb-4">
+            <div
+              class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center"
+            >
+              <i class="fas fa-clock text-purple-600 text-xl"></i>
+            </div>
+            <span
+              class="text-xs bg-purple-100 text-purple-600 px-2 py-1 rounded-full"
+              >Optimized</span
+            >
+          </div>
+          <h3 class="text-2xl font-bold text-gray-900 mb-1">0.12ms</h3>
+          <p class="text-gray-600 text-sm">Processing Time</p>
+        </div>
+
+        <div
+          class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-gray-200/50 shadow-lg"
+        >
+          <div class="flex items-center justify-between mb-4">
+            <div
+              class="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center"
+            >
+              <i class="fas fa-server text-orange-600 text-xl"></i>
+            </div>
+            <span
+              class="text-xs bg-green-100 text-green-600 px-2 py-1 rounded-full"
+              >Online</span
+            >
+          </div>
+          <h3 class="text-2xl font-bold text-gray-900 mb-1">99.9%</h3>
+          <p class="text-gray-600 text-sm">Uptime</p>
+        </div>
+      </div>
+
+      <!-- Charts Section -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+        <!-- Detection Accuracy Chart -->
+        <div
+          class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-gray-200/50 shadow-lg"
+        >
+          <div class="flex items-center justify-between mb-6">
+            <h3 class="text-xl font-bold text-gray-900">Detection Accuracy</h3>
+            <select class="text-sm border border-gray-200 rounded-lg px-3 py-1">
+              <option>Last 24 hours</option>
+              <option>Last 7 days</option>
+              <option>Last 30 days</option>
+            </select>
+          </div>
+          <canvas id="accuracyChart" width="400" height="200"></canvas>
+        </div>
+
+        <!-- Processing Performance -->
+        <div
+          class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-gray-200/50 shadow-lg"
+        >
+          <div class="flex items-center justify-between mb-6">
+            <h3 class="text-xl font-bold text-gray-900">
+              Processing Performance
+            </h3>
+            <div class="text-sm text-gray-600">FPS & Latency</div>
+          </div>
+          <canvas id="performanceChart" width="400" height="200"></canvas>
+        </div>
+      </div>
+
+      <!-- Color Detection Statistics -->
+      <div
+        class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-gray-200/50 shadow-lg mb-8"
+      >
+        <h3 class="text-xl font-bold text-gray-900 mb-6">
+          Color Detection Statistics
+        </h3>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <!-- Pink Detection -->
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <h4 class="font-semibold text-gray-800">
+                Pink Detection Analysis
+              </h4>
+              <span
+                class="text-sm text-pink-600 bg-pink-50 px-2 py-1 rounded-full"
+                >HSV: 140°-170°</span
+              >
+            </div>
+
+            <div class="space-y-4">
+              <div class="flex items-center justify-between">
+                <span class="text-gray-600">Current Accuracy</span>
+                <span class="font-semibold text-pink-600">95.0%</span>
+              </div>
+              <div class="w-full bg-pink-100 rounded-full h-2">
+                <div
+                  class="bg-gradient-to-r from-pink-400 to-pink-600 h-2 rounded-full"
+                  style="width: 95%"
+                ></div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-4 text-sm">
+                <div class="text-center p-3 bg-pink-50 rounded-lg">
+                  <div class="font-semibold text-pink-600">Normal Indoor</div>
+                  <div class="text-gray-600">95% accuracy</div>
+                </div>
+                <div class="text-center p-3 bg-pink-50 rounded-lg">
+                  <div class="font-semibold text-pink-600">Bright Light</div>
+                  <div class="text-gray-600">72% accuracy</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- White Detection -->
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <h4 class="font-semibold text-gray-800">
+                White Detection Analysis
+              </h4>
+              <span
+                class="text-sm text-gray-600 bg-gray-50 px-2 py-1 rounded-full"
+                >S: 0-50%, V: 200-255%</span
+              >
+            </div>
+
+            <div class="space-y-4">
+              <div class="flex items-center justify-between">
+                <span class="text-gray-600">Current Accuracy</span>
+                <span class="font-semibold text-gray-700">80.0%</span>
+              </div>
+              <div class="w-full bg-gray-100 rounded-full h-2">
+                <div
+                  class="bg-gradient-to-r from-gray-400 to-gray-600 h-2 rounded-full"
+                  style="width: 80%"
+                ></div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-4 text-sm">
+                <div class="text-center p-3 bg-gray-50 rounded-lg">
+                  <div class="font-semibold text-gray-700">Normal Indoor</div>
+                  <div class="text-gray-600">80% accuracy</div>
+                </div>
+                <div class="text-center p-3 bg-gray-50 rounded-lg">
+                  <div class="font-semibold text-gray-700">Shadow</div>
+                  <div class="text-gray-600">15% accuracy</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- System Health -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Camera Status -->
+        <div
+          class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-gray-200/50 shadow-lg"
+        >
+          <h3 class="text-lg font-bold text-gray-900 mb-4">Camera Status</h3>
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-gray-600">Connection</span>
+              <div class="flex items-center space-x-2">
+                <div class="w-2 h-2 bg-green-400 rounded-full"></div>
+                <span class="text-green-600 font-medium">Online</span>
+              </div>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-gray-600">Resolution</span>
+              <span class="font-medium">640×480</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-gray-600">Frame Rate</span>
+              <span class="font-medium">30 FPS</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Processing Load -->
+        <div
+          class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-gray-200/50 shadow-lg"
+        >
+          <h3 class="text-lg font-bold text-gray-900 mb-4">Processing Load</h3>
+          <div class="space-y-4">
+            <div>
+              <div class="flex justify-between text-sm mb-1">
+                <span class="text-gray-600">CPU Usage</span>
+                <span class="font-medium">7.2%</span>
+              </div>
+              <div class="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  class="bg-blue-600 h-2 rounded-full"
+                  style="width: 7%"
+                ></div>
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between text-sm mb-1">
+                <span class="text-gray-600">Memory</span>
+                <span class="font-medium">89.7%</span>
+              </div>
+              <div class="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  class="bg-orange-600 h-2 rounded-full"
+                  style="width: 90%"
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div
+          class="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-gray-200/50 shadow-lg"
+        >
+          <h3 class="text-lg font-bold text-gray-900 mb-4">Recent Activity</h3>
+          <div class="space-y-3 text-sm">
+            <div class="flex items-center space-x-3">
+              <div class="w-2 h-2 bg-green-400 rounded-full"></div>
+              <span class="text-gray-600">Detection started</span>
+              <span class="text-gray-400 ml-auto">2m ago</span>
+            </div>
+            <div class="flex items-center space-x-3">
+              <div class="w-2 h-2 bg-blue-400 rounded-full"></div>
+              <span class="text-gray-600">High accuracy achieved</span>
+              <span class="text-gray-400 ml-auto">5m ago</span>
+            </div>
+            <div class="flex items-center space-x-3">
+              <div class="w-2 h-2 bg-yellow-400 rounded-full"></div>
+              <span class="text-gray-600">Camera reconnected</span>
+              <span class="text-gray-400 ml-auto">10m ago</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Initialize Charts
+      const ctx1 = document.getElementById("accuracyChart").getContext("2d");
+      const accuracyChart = new Chart(ctx1, {
+        type: "line",
+        data: {
+          labels: [
+            "00:00",
+            "04:00",
+            "08:00",
+            "12:00",
+            "16:00",
+            "20:00",
+            "24:00",
+          ],
+          datasets: [
+            {
+              label: "Pink Detection",
+              data: [95, 92, 88, 95, 93, 97, 95],
+              borderColor: "#ec4899",
+              backgroundColor: "rgba(236, 72, 153, 0.1)",
+              tension: 0.4,
+            },
+            {
+              label: "White Detection",
+              data: [80, 75, 70, 82, 78, 85, 80],
+              borderColor: "#6b7280",
+              backgroundColor: "rgba(107, 114, 128, 0.1)",
+              tension: 0.4,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: {
+              position: "top",
+            },
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 100,
+            },
+          },
+        },
+      });
+
+      const ctx2 = document.getElementById("performanceChart").getContext("2d");
+      const performanceChart = new Chart(ctx2, {
+        type: "bar",
+        data: {
+    <script>
+        // Global variables
+        let realtimeChart, distributionChart, historyChart;
+        let detectionData = [];
+        let isPaused = false;
+        let startTime = Date.now();
+        let lastPinkValue = 0;
+        let lastWhiteValue = 0;
+        let frameCount = 0;
+        
+        // Statistics tracking
+        let pinkValues = [];
+        let whiteValues = [];
+
+        // Chart colors based on actual detected colors
+        const colors = {
+            pink: {
+                solid: '#ff1493',        // Deep Pink - actual pink color
+                light: '#ffb6c1',        // Light Pink for gradients
+                transparent: 'rgba(255, 20, 147, 0.15)',
+                gradient: ['#ff69b4', '#ff1493', '#dc143c'],  // Hot Pink to Deep Pink to Crimson
+                shadow: 'rgba(255, 20, 147, 0.3)'
+            },
+            white: {
+                solid: '#ffffff',        // Pure White - actual white color
+                light: '#f8f9fa',        // Light gray for contrast
+                transparent: 'rgba(255, 255, 255, 0.8)',
+                gradient: ['#ffffff', '#f5f5f5', '#e9ecef'],  // White to Light Gray
+                shadow: 'rgba(0, 0, 0, 0.1)'
+            },
+            background: {
+                pink: 'linear-gradient(135deg, #ff69b4, #ff1493, #c71585)',
+                white: 'linear-gradient(135deg, #ffffff, #f8f9fa, #e9ecef)',
+                accent: '#8b5cf6'
+            }
+        };
+
+        // Initialize charts
+        function initCharts() {
+            // Real-time chart
+            const rtCtx = document.getElementById('realtimeChart').getContext('2d');
+            realtimeChart = new Chart(rtCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: '🌸 Pink Detection',
+                        data: [],
+                        borderColor: colors.pink.solid,
+                        backgroundColor: colors.pink.transparent,
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 4,
+                        pointHoverRadius: 8,
+                        pointBackgroundColor: colors.pink.solid,
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        borderWidth: 3,
+                        shadowColor: colors.pink.shadow,
+                        shadowBlur: 10
+                    }, {
+                        label: '⚪ White Detection', 
+                        data: [],
+                        borderColor: colors.white.solid,
+                        backgroundColor: colors.white.transparent,
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 4,
+                        pointHoverRadius: 8,
+                        pointBackgroundColor: colors.white.solid,
+                        pointBorderColor: '#000000',
+                        pointBorderWidth: 2,
+                        borderWidth: 3,
+                        shadowColor: colors.white.shadow,
+                        shadowBlur: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 20
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                displayFormats: {
+                                    second: 'HH:mm:ss'
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Detection %'
+                            }
+                        }
+                    },
+                    animation: {
+                        duration: 300
+                    }
+                }
+            });
+
+            // Distribution chart (Doughnut)
+            const distCtx = document.getElementById('distributionChart').getContext('2d');
+            distributionChart = new Chart(distCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['🌸 Pink Detection', '⚪ White Detection', '🔘 No Detection'],
+                    datasets: [{
+                        data: [0, 0, 100],
+                        backgroundColor: [
+                            colors.pink.solid,
+                            colors.white.solid,
+                            '#e5e7eb'
+                        ],
+                        borderWidth: 4,
+                        borderColor: '#ffffff',
+                        hoverBorderWidth: 6,
+                        hoverBackgroundColor: [
+                            colors.pink.light,
+                            colors.white.light,
+                            '#d1d5db'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true
+                            }
+                        }
+                    },
+                    cutout: '60%'
+                }
+            });
+
+            // History chart
+            const historyCtx = document.getElementById('historyChart').getContext('2d');
+            historyChart = new Chart(historyCtx, {
+                type: 'bar',
+                data: {
+                    labels: generateTimeLabels(),
+                    datasets: [{
+                        label: '🌸 Pink Detection',
+                        data: Array(12).fill(0),
+                        backgroundColor: colors.pink.solid,
+                        borderColor: colors.pink.solid,
+                        borderWidth: 2,
+                        borderRadius: 6,
+                        borderSkipped: false,
+                        hoverBackgroundColor: colors.pink.light,
+                        shadowColor: colors.pink.shadow,
+                        shadowBlur: 8
+                    }, {
+                        label: '⚪ White Detection',
+                        data: Array(12).fill(0),
+                        backgroundColor: colors.white.solid,
+                        borderColor: '#000000',
+                        borderWidth: 2,
+                        borderRadius: 6,
+                        borderSkipped: false,
+                        hoverBackgroundColor: colors.white.light,
+                        shadowColor: colors.white.shadow,
+                        shadowBlur: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Time (5-minute intervals)'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Average Detection %'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Generate time labels for history chart
+        function generateTimeLabels() {
+            const labels = [];
+            const now = new Date();
+            for (let i = 11; i >= 0; i--) {
+                const time = new Date(now.getTime() - i * 5 * 60 * 1000);
+                labels.push(time.toLocaleTimeString('en-US', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                }));
+            }
+            return labels;
+        }
+
+        // Update real-time data
+        function updateRealtimeData(pinkPercent, whitePercent) {
+            if (isPaused) return;
+
+            const now = new Date();
+
+            // Add new data point
+            realtimeChart.data.labels.push(now);
+            realtimeChart.data.datasets[0].data.push(pinkPercent);
+            realtimeChart.data.datasets[1].data.push(whitePercent);
+
+            // Keep only last 30 data points for performance
+            if (realtimeChart.data.labels.length > 30) {
+                realtimeChart.data.labels.shift();
+                realtimeChart.data.datasets[0].data.shift();
+                realtimeChart.data.datasets[1].data.shift();
+            }
+
+            realtimeChart.update('none');
+
+            // Update distribution chart
+            const totalDetection = pinkPercent + whitePercent;
+            const noDetection = Math.max(0, 100 - totalDetection);
+            
+            distributionChart.data.datasets[0].data = [pinkPercent, whitePercent, noDetection];
+            distributionChart.update('none');
+
+            // Store values for statistics
+            pinkValues.push(pinkPercent);
+            whiteValues.push(whitePercent);
+            
+            // Keep only last 100 values for statistics
+            if (pinkValues.length > 100) {
+                pinkValues.shift();
+                whiteValues.shift();
+            }
+        }
+
+        // Update metrics cards
+        function updateMetrics(pinkPercent, whitePercent) {
+            // Update current values
+            document.getElementById('currentPink').textContent = pinkPercent.toFixed(1) + '%';
+            document.getElementById('currentWhite').textContent = whitePercent.toFixed(1) + '%';
+
+            // Update color indicators based on detection intensity
+            updateColorIndicators(pinkPercent, whitePercent);
+
+            // Calculate changes
+            const pinkChange = pinkPercent - lastPinkValue;
+            const whiteChange = whitePercent - lastWhiteValue;
+
+            // Update trend indicators
+            updateTrendIndicator('pinkTrend', 'pinkChange', pinkChange);
+            updateTrendIndicator('whiteTrend', 'whiteChange', whiteChange);
+
+            // Update statistics
+            if (pinkValues.length > 0) {
+                const pinkAvg = pinkValues.reduce((a, b) => a + b) / pinkValues.length;
+                const whiteAvg = whiteValues.reduce((a, b) => a + b) / whiteValues.length;
+                const pinkPeak = Math.max(...pinkValues);
+                const whitePeak = Math.max(...whiteValues);
+
+                document.getElementById('pinkAvg').textContent = pinkAvg.toFixed(1) + '%';
+                document.getElementById('whiteAvg').textContent = whiteAvg.toFixed(1) + '%';
+                document.getElementById('pinkPeak').textContent = pinkPeak.toFixed(1) + '%';
+                document.getElementById('whitePeak').textContent = whitePeak.toFixed(1) + '%';
+
+                document.getElementById('pinkAvgDisplay').textContent = pinkAvg.toFixed(1) + '%';
+                document.getElementById('whiteAvgDisplay').textContent = whiteAvg.toFixed(1) + '%';
+
+                // Update progress bars
+                document.getElementById('pinkAvgBar').style.width = Math.min(pinkAvg, 100) + '%';
+                document.getElementById('whiteAvgBar').style.width = Math.min(whiteAvg, 100) + '%';
+
+                // Update total detection display
+                const totalDetection = pinkPercent + whitePercent;
+                document.getElementById('totalDetectionPercent').textContent = totalDetection.toFixed(1) + '%';
+            }
+
+            // Update frame count
+            frameCount++;
+            document.getElementById('totalFrames').textContent = frameCount.toLocaleString();
+
+            // Update uptime
+            const uptime = Math.floor((Date.now() - startTime) / 1000);
+            const hours = Math.floor(uptime / 3600);
+            const minutes = Math.floor((uptime % 3600) / 60);
+            const seconds = uptime % 60;
+            document.getElementById('uptime').textContent = `${hours}h ${minutes}m ${seconds}s`;
+            document.getElementById('systemUptime').textContent = `${hours}h ${minutes}m uptime`;
+
+            // Update last update time
+            document.getElementById('lastUpdateTime').textContent = new Date().toLocaleTimeString();
+
+            lastPinkValue = pinkPercent;
+            lastWhiteValue = whitePercent;
+        }
+
+        // Update color indicators based on detection intensity
+        function updateColorIndicators(pinkPercent, whitePercent) {
+            const pinkIndicator = document.getElementById('pinkColorIndicator');
+            const whiteIndicator = document.getElementById('whiteColorIndicator');
+
+            // Pink indicator - intensity based on detection percentage
+            if (pinkPercent > 0) {
+                const intensity = Math.min(pinkPercent / 20, 1); // Normalize to 0-1 based on 20% max
+                const glowSize = 5 + (intensity * 15); // 5-20px glow
+                pinkIndicator.style.background = `linear-gradient(45deg, #ff69b4, #ff1493)`;
+                pinkIndicator.style.boxShadow = `0 0 ${glowSize}px rgba(255, 20, 147, ${0.3 + intensity * 0.7}), 0 0 ${glowSize * 2}px rgba(255, 105, 180, ${0.2 + intensity * 0.3})`;
+                pinkIndicator.style.transform = `scale(${1 + intensity * 0.3})`;
+            } else {
+                pinkIndicator.style.background = `linear-gradient(45deg, #ffb6c1, #dda0dd)`;
+                pinkIndicator.style.boxShadow = `0 0 5px rgba(255, 20, 147, 0.2)`;
+                pinkIndicator.style.transform = `scale(1)`;
+            }
+
+            // White indicator - intensity based on detection percentage  
+            if (whitePercent > 0) {
+                const intensity = Math.min(whitePercent / 50, 1); // Normalize to 0-1 based on 50% max
+                const glowSize = 5 + (intensity * 15); // 5-20px glow
+                whiteIndicator.style.background = `radial-gradient(circle, #ffffff, #f8f9fa)`;
+                whiteIndicator.style.boxShadow = `0 0 ${glowSize}px rgba(255, 255, 255, ${0.8 + intensity * 0.2}), 0 0 ${glowSize * 2}px rgba(248, 249, 250, ${0.4 + intensity * 0.4})`;
+                whiteIndicator.style.border = `2px solid #${intensity > 0.5 ? '000000' : 'dee2e6'}`;
+                whiteIndicator.style.transform = `scale(${1 + intensity * 0.3})`;
+            } else {
+                whiteIndicator.style.background = `radial-gradient(circle, #f8f9fa, #e9ecef)`;
+                whiteIndicator.style.boxShadow = `0 0 5px rgba(0, 0, 0, 0.1)`;
+                whiteIndicator.style.border = `2px solid #dee2e6`;
+                whiteIndicator.style.transform = `scale(1)`;
+            }
+        }
+
+        // Update trend indicator
+        function updateTrendIndicator(trendId, changeId, change) {
+            const trendIcon = document.getElementById(trendId);
+            const changeText = document.getElementById(changeId);
+
+            if (change > 0) {
+                trendIcon.className = 'fas fa-arrow-up mr-1';
+                changeText.textContent = '+' + change.toFixed(1) + '%';
+                trendIcon.style.color = '#10b981';
+            } else if (change < 0) {
+                trendIcon.className = 'fas fa-arrow-down mr-1';
+                changeText.textContent = change.toFixed(1) + '%';
+                trendIcon.style.color = '#ef4444';
+            } else {
+                trendIcon.className = 'fas fa-minus mr-1';
+                changeText.textContent = '0.0%';
+                trendIcon.style.color = '#6b7280';
+            }
+        }
+
+        // Update debug information
+        function updateDebugInfo(debugInfo) {
+            if (debugInfo.active_ranges) {
+                document.getElementById('activeRanges').textContent = debugInfo.active_ranges;
+                document.getElementById('activeRangesText').textContent = `${debugInfo.active_ranges} HSV ranges active`;
+            }
+
+            if (debugInfo.detection_method) {
+                const method = debugInfo.detection_method.replace('_', ' ').toUpperCase();
+                document.getElementById('detectionMethod').textContent = method;
+            }
+
+            if (debugInfo.preprocessing) {
+                const preprocessing = debugInfo.preprocessing;
+                updateStatusIcon('gammaStatus', preprocessing.gamma_correction);
+                updateStatusIcon('histogramStatus', preprocessing.histogram_eq);
+                updateStatusIcon('saturationStatus', preprocessing.saturation_boost);
+            }
+
+            if (debugInfo.dominant_hue !== undefined) {
+                document.getElementById('dominantHue').textContent = debugInfo.dominant_hue + '°';
+            }
+
+            if (debugInfo.avg_saturation !== undefined) {
+                document.getElementById('avgSaturation').textContent = debugInfo.avg_saturation.toFixed(1);
+            }
+
+            if (debugInfo.avg_value !== undefined) {
+                document.getElementById('avgValue').textContent = debugInfo.avg_value.toFixed(1);
+            }
+        }
+
+        // Update status icon
+        function updateStatusIcon(elementId, isActive) {
+            const element = document.getElementById(elementId);
+            if (isActive) {
+                element.className = 'fas fa-check-circle text-green-500';
+            } else {
+                element.className = 'fas fa-times-circle text-red-500';
+            }
+        }
+
+        // Fetch detection data
+        function fetchDetectionData() {
+            fetch('/detect-color')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const pinkPercent = parseFloat(data.pink) || 0;
+                        const whitePercent = parseFloat(data.white) || 0;
+
+                        updateRealtimeData(pinkPercent, whitePercent);
+                        updateMetrics(pinkPercent, whitePercent);
+
+                        // Update debug info
+                        if (data.debug_info) {
+                            updateDebugInfo(data.debug_info);
+                        }
+
+                        // Update connection status
+                        document.getElementById('connectionStatus').textContent = 'Connected';
+                        document.getElementById('systemStatus').textContent = 'Online';
+
+                        // Store data for export
+                        detectionData.push({
+                            timestamp: new Date().toISOString(),
+                            pink: pinkPercent,
+                            white: whitePercent
+                        });
+
+                        // Keep only last 1000 records for export
+                        if (detectionData.length > 1000) {
+                            detectionData.shift();
+                        }
+
+                    } else {
+                        document.getElementById('connectionStatus').textContent = 'Disconnected';
+                        document.getElementById('systemStatus').textContent = 'Offline';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching data:', error);
+                    document.getElementById('connectionStatus').textContent = 'Error';
+                    document.getElementById('systemStatus').textContent = 'Error';
+                });
+        }
+
+        // Event listeners
+        document.getElementById('pauseChart').addEventListener('click', function() {
+            isPaused = !isPaused;
+            this.innerHTML = isPaused ? '<i class="fas fa-play"></i>' : '<i class="fas fa-pause"></i>';
+            this.title = isPaused ? 'Resume updates' : 'Pause updates';
+        });
+
+        document.getElementById('resetChart').addEventListener('click', function() {
+            realtimeChart.data.labels = [];
+            realtimeChart.data.datasets[0].data = [];
+            realtimeChart.data.datasets[1].data = [];
+            realtimeChart.update();
+            
+            distributionChart.data.datasets[0].data = [0, 0, 100];
+            distributionChart.update();
+            
+            pinkValues = [];
+            whiteValues = [];
+            frameCount = 0;
+            startTime = Date.now();
+            detectionData = [];
+        });
+
+        document.getElementById('exportBtn').addEventListener('click', function() {
+            const csvContent = "data:text/csv;charset=utf-8," 
+                + "Timestamp,Pink %,White %,Total %\n"
+                + detectionData.map(d => 
+                    `${d.timestamp},${d.pink},${d.white},${(d.pink + d.white).toFixed(2)}`
+                ).join("\n");
+            
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `color_detection_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Initializing Color Detection Dashboard');
+            
+            initCharts();
+            fetchDetectionData();
+            
+            // Update every 2 seconds
+            setInterval(fetchDetectionData, 2000);
+            
+            console.log('✅ Dashboard initialized successfully');
+        });
+    </script>
+  </body>
+</html>

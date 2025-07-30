@@ -23,6 +23,13 @@ def init_camera():
         camera.set(cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 5000)
         camera.set(cv2.CAP_PROP_READ_TIMEOUT_MSEC, 5000)
         
+        # Set resolution untuk mengurangi zoom
+        camera.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+        
+        # Set FPS untuk stabilitas
+        camera.set(cv2.CAP_PROP_FPS, 15)
+        
         if not camera.isOpened():
             print("❌ Tidak bisa membuka RTSP stream")
             return False
@@ -35,7 +42,7 @@ def init_camera():
             camera = None
             return False
             
-        print("✅ Berhasil koneksi ke RTSP stream")
+        print(f"✅ Berhasil koneksi ke RTSP stream - Resolution: {test_frame.shape[1]}x{test_frame.shape[0]}")
         return True
     except Exception as e:
         print(f"❌ Gagal init camera: {e}")
@@ -128,14 +135,50 @@ def generate_video_stream():
             
             # Process frame
             h, w, _ = frame.shape
-            box_size = 200
-            top_left_x = w // 2 - box_size // 2
-            top_left_y = h // 2 - box_size // 2
-            bottom_right_x = top_left_x + box_size
-            bottom_right_y = top_left_y + box_size
-
-            cv2.rectangle(frame, (top_left_x, top_left_y), (bottom_right_x, bottom_right_y), (0, 255, 0), 2)
-            roi = frame[top_left_y:bottom_right_y, top_left_x:bottom_right_x]
+            
+            # Scale frame untuk mengurangi zoom jika terlalu besar
+            max_display_width = 1024
+            max_display_height = 768
+            
+            if w > max_display_width or h > max_display_height:
+                # Hitung rasio scaling yang sesuai
+                scale_w = max_display_width / w
+                scale_h = max_display_height / h
+                scale = min(scale_w, scale_h)
+                
+                # Resize frame untuk display
+                new_w = int(w * scale)
+                new_h = int(h * scale)
+                display_frame = cv2.resize(frame, (new_w, new_h))
+                
+                # Sesuaikan koordinat detection box
+                box_size = int(200 * scale)
+                top_left_x = new_w // 2 - box_size // 2
+                top_left_y = new_h // 2 - box_size // 2
+                bottom_right_x = top_left_x + box_size
+                bottom_right_y = top_left_y + box_size
+                
+                # Gunakan ROI dari frame original untuk deteksi akurat
+                orig_box_size = 200
+                orig_top_left_x = w // 2 - orig_box_size // 2
+                orig_top_left_y = h // 2 - orig_box_size // 2
+                orig_bottom_right_x = orig_top_left_x + orig_box_size
+                orig_bottom_right_y = orig_top_left_y + orig_box_size
+                roi = frame[orig_top_left_y:orig_bottom_right_y, orig_top_left_x:orig_bottom_right_x]
+                
+                # Draw detection box pada display frame
+                cv2.rectangle(display_frame, (top_left_x, top_left_y), (bottom_right_x, bottom_right_y), (0, 255, 0), 2)
+                frame = display_frame
+            else:
+                # Frame sudah dalam ukuran yang sesuai
+                box_size = 200
+                top_left_x = w // 2 - box_size // 2
+                top_left_y = h // 2 - box_size // 2
+                bottom_right_x = top_left_x + box_size
+                bottom_right_y = top_left_y + box_size
+                
+                cv2.rectangle(frame, (top_left_x, top_left_y), (bottom_right_x, bottom_right_y), (0, 255, 0), 2)
+                roi = frame[top_left_y:bottom_right_y, top_left_x:bottom_right_x]
             
             # Color detection
             hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)

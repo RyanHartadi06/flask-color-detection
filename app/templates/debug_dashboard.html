@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Debug Dashboard - Color Detection</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+  </head>
+  <body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+      <h1 class="text-3xl font-bold text-center mb-8">🎨 Debug Dashboard</h1>
+
+      <!-- Status Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="bg-white rounded-lg shadow-lg p-6">
+          <h3 class="text-lg font-semibold mb-2">📊 Pink Detection</h3>
+          <p class="text-3xl font-bold text-pink-500" id="pinkValue">
+            Loading...
+          </p>
+          <p class="text-sm text-gray-600">Current percentage</p>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-lg p-6">
+          <h3 class="text-lg font-semibold mb-2">⚪ White Detection</h3>
+          <p class="text-3xl font-bold text-gray-700" id="whiteValue">
+            Loading...
+          </p>
+          <p class="text-sm text-gray-600">Current percentage</p>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-lg p-6">
+          <h3 class="text-lg font-semibold mb-2">🔄 Status</h3>
+          <p class="text-lg font-semibold" id="statusValue">Loading...</p>
+          <p class="text-sm text-gray-600" id="lastUpdate">Last update: --</p>
+        </div>
+      </div>
+
+      <!-- Simple Chart -->
+      <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+        <h3 class="text-lg font-semibold mb-4">📈 Real-time Detection Chart</h3>
+        <div style="height: 300px">
+          <canvas id="realtimeChart"></canvas>
+        </div>
+        <div class="mt-4 flex space-x-4">
+          <button
+            id="pauseBtn"
+            class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          >
+            ⏸️ Pause
+          </button>
+          <button
+            id="resetBtn"
+            class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
+          >
+            🔄 Reset
+          </button>
+        </div>
+      </div>
+
+      <!-- Debug Info -->
+      <div class="bg-white rounded-lg shadow-lg p-6">
+        <h3 class="text-lg font-semibold mb-4">🐛 Debug Information</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <strong>Frame Count:</strong> <span id="frameCount">0</span>
+          </div>
+          <div><strong>Update Interval:</strong> <span>2 seconds</span></div>
+          <div>
+            <strong>API Status:</strong> <span id="apiStatus">Unknown</span>
+          </div>
+          <div>
+            <strong>Error Count:</strong> <span id="errorCount">0</span>
+          </div>
+        </div>
+        <div class="mt-4">
+          <strong>Raw Data:</strong>
+          <pre id="rawData" class="bg-gray-100 p-2 rounded text-xs mt-2">
+No data yet</pre
+          >
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let chart;
+      let isPaused = false;
+      let frameCount = 0;
+      let errorCount = 0;
+
+      // Initialize chart
+      function initChart() {
+        const ctx = document.getElementById("realtimeChart").getContext("2d");
+        chart = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: [],
+            datasets: [
+              {
+                label: "Pink %",
+                data: [],
+                borderColor: "#ff1493",
+                backgroundColor: "rgba(255, 20, 147, 0.1)",
+                borderWidth: 2,
+                fill: true,
+              },
+              {
+                label: "White %",
+                data: [],
+                borderColor: "#666666",
+                backgroundColor: "rgba(102, 102, 102, 0.1)",
+                borderWidth: 2,
+                fill: true,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                beginAtZero: true,
+                max: 100,
+              },
+            },
+            plugins: {
+              legend: {
+                display: true,
+              },
+            },
+            animation: {
+              duration: 0,
+            },
+          },
+        });
+      }
+
+      // Fetch data from API
+      async function fetchData() {
+        try {
+          console.log("🔄 Fetching data...");
+
+          const response = await fetch("/detect-color");
+          const data = await response.json();
+
+          console.log("📊 Received data:", data);
+
+          // Update debug info
+          document.getElementById("rawData").textContent = JSON.stringify(
+            data,
+            null,
+            2
+          );
+          document.getElementById("apiStatus").textContent = "Connected ✅";
+          document.getElementById("apiStatus").className = "text-green-600";
+
+          if (data.status === "success") {
+            const pinkPercent = parseFloat(data.pink) || 0;
+            const whitePercent = parseFloat(data.white) || 0;
+
+            // Update values
+            document.getElementById("pinkValue").textContent =
+              pinkPercent.toFixed(1) + "%";
+            document.getElementById("whiteValue").textContent =
+              whitePercent.toFixed(1) + "%";
+            document.getElementById("statusValue").textContent = "Active 🟢";
+            document.getElementById("statusValue").className =
+              "text-lg font-semibold text-green-600";
+
+            // Update chart
+            if (!isPaused && chart) {
+              const now = new Date().toLocaleTimeString();
+              chart.data.labels.push(now);
+              chart.data.datasets[0].data.push(pinkPercent);
+              chart.data.datasets[1].data.push(whitePercent);
+
+              // Keep only last 20 points
+              if (chart.data.labels.length > 20) {
+                chart.data.labels.shift();
+                chart.data.datasets[0].data.shift();
+                chart.data.datasets[1].data.shift();
+              }
+
+              chart.update("none");
+            }
+
+            frameCount++;
+            document.getElementById("frameCount").textContent = frameCount;
+          } else {
+            document.getElementById("statusValue").textContent = "Error ❌";
+            document.getElementById("statusValue").className =
+              "text-lg font-semibold text-red-600";
+          }
+
+          document.getElementById("lastUpdate").textContent =
+            "Last update: " + new Date().toLocaleTimeString();
+        } catch (error) {
+          console.error("❌ Error fetching data:", error);
+          errorCount++;
+          document.getElementById("errorCount").textContent = errorCount;
+          document.getElementById("apiStatus").textContent = "Error ❌";
+          document.getElementById("apiStatus").className = "text-red-600";
+          document.getElementById("statusValue").textContent =
+            "Disconnected 🔴";
+          document.getElementById("statusValue").className =
+            "text-lg font-semibold text-red-600";
+        }
+      }
+
+      // Event listeners
+      document
+        .getElementById("pauseBtn")
+        .addEventListener("click", function () {
+          isPaused = !isPaused;
+          this.textContent = isPaused ? "▶️ Resume" : "⏸️ Pause";
+          this.className = isPaused
+            ? "bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+            : "bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600";
+        });
+
+      document
+        .getElementById("resetBtn")
+        .addEventListener("click", function () {
+          if (chart) {
+            chart.data.labels = [];
+            chart.data.datasets[0].data = [];
+            chart.data.datasets[1].data = [];
+            chart.update();
+          }
+          frameCount = 0;
+          errorCount = 0;
+          document.getElementById("frameCount").textContent = "0";
+          document.getElementById("errorCount").textContent = "0";
+        });
+
+      // Initialize
+      document.addEventListener("DOMContentLoaded", function () {
+        console.log("🚀 Initializing Debug Dashboard");
+
+        initChart();
+
+        // Initial fetch
+        fetchData();
+
+        // Update every 2 seconds
+        setInterval(fetchData, 2000);
+
+        console.log("✅ Debug Dashboard initialized");
+      });
+    </script>
+  </body>
+</html>
